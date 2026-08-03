@@ -1,0 +1,8 @@
+meu-projeto/
+├── public/
+│   └── index.html        (Seu código front-end interativo)
+├── api/
+│   └── gemini.js         (O script serverless que esconde a API Key)
+├── package.json
+└── vercel.json
+Primeiro passo criação do script do servidor
