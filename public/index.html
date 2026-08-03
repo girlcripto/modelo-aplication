@@ -1,23 +1,394 @@
-async function chamarGemini(promptUsuario) {
-  try {
-    const response = await fetch('/api/gemini', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt: promptUsuario })
-    });
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistematize: Hub de Produtividade Visual</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fcfaf7; /* Warm neutral background */
+            color: #1e293b;
+            scroll-behavior: smooth;
+        }
 
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error("Erro na resposta:", data.error);
-      return;
-    }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
 
-    console.log("Resposta do Gemini:", data.result);
-    // Aqui você atualiza a sua interface/DOM com data.result
-  } catch (err) {
-    console.error("Erro na requisição:", err);
-  }
-}
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            border-radius: 1rem;
+            transition: transform 0.2s ease;
+        }
+
+        .nav-link.active {
+            color: #0284c7;
+            border-bottom: 2px solid #0284c7;
+        }
+
+        input[type="range"] {
+            accent-color: #0284c7;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Chosen Palette: Warm Neutrals & Sky Blue (Slate/Stone/Sky) -->
+    <!-- Application Structure Plan: 
+        1. Dashboard Inicial: Visão geral da proposta de valor.
+        2. Laboratório de Anatomia: Interativo para visualizar a regra 60-30-10 e tipografia.
+        3. Simulador de Impacto: Gráficos comparativos de tempo manual vs sistematizado.
+        4. Calculadora de ROI: Ferramenta prática para o empresário ver economia real.
+        5. Galeria de Estilos: Cards interativos com diferentes abordagens visuais.
+        Esta estrutura foi escolhida para transformar a leitura passiva do ebook em uma experiência de aprendizado ativo ("aprender fazendo").
+    -->
+    <!-- Visualization & Content Choices: 
+        - Regra 60-30-10 -> Donut Chart (Chart.js) -> Representação visual de proporções.
+        - Fluxo de Trabalho -> Bar Chart (Chart.js) -> Comparação de economia de tempo.
+        - ROI -> Real-time Display (JS) -> Feedback imediato de valor financeiro/tempo.
+        - MDS Hierarchy -> Grid interativo -> Facilita compreensão de dependências.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <nav class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-sky-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
+                    <span class="font-bold text-xl text-stone-800 tracking-tight">Sistematize</span>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <button onclick="scrollToSection('hero')" class="nav-link text-stone-600 hover:text-sky-600 transition">Início</button>
+                    <button onclick="scrollToSection('anatomy')" class="nav-link text-stone-600 hover:text-sky-600 transition">Anatomia</button>
+                    <button onclick="scrollToSection('impact')" class="nav-link text-stone-600 hover:text-sky-600 transition">Impacto</button>
+                    <button onclick="scrollToSection('roi')" class="nav-link text-stone-600 hover:text-sky-600 transition">ROI</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        
+        <section id="ai-advisor" class="py-16 border-t border-stone-100">
+            <div class="glass-card p-8 bg-white/50">
+                <h2 class="text-2xl font-bold text-stone-900 mb-2">Assistente de Tematização (IA)</h2>
+                <p class="text-stone-600 mb-6">Peça ajuda ao Gemini para gerar sugestões de cores, fontes ou CSS para seu próximo tema.</p>
+                
+                <div class="flex flex-col gap-4">
+                    <textarea id="aiPrompt" class="w-full p-4 rounded-xl border border-stone-200 focus:ring-2 focus:ring-sky-500 outline-none" rows="3" placeholder="Ex: Gere uma paleta de cores para um consultório odontológico focado em confiança e tecnologia..."></textarea>
+                    <button onclick="askGemini()" id="aiBtn" class="px-6 py-3 bg-stone-900 text-white rounded-lg font-semibold hover:bg-stone-800 transition">Gerar Sugestão</button>
+                    <div id="aiResponse" class="mt-4 p-6 bg-sky-50 rounded-xl text-stone-800 border border-sky-100 hidden"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sectlsion: Theme Anatomy (Regra 60-30-10) -->
+        <section id="anatomy" class="py-16 border-t border-stone-100">
+            <div class="mb-10 text-center">
+                <h2 class="text-3xl font-bold text-stone-900">1. Anatomia do Tema (Regra 60-30-10)</h2>
+                <p class="text-stone-600 mt-2 max-w-3xl mx-auto">Entenda a distribuição visual ideal para garantir legibilidade, hierarquia e contraste sem poluição visual.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center glass-card p-8">
+                <div class="chart-container">
+                    <canvas id="donutChartAnatomy"></canvas>
+                </div>
+                <div class="space-y-4">
+                    <div class="p-4 bg-stone-100 rounded-xl border-l-4 border-stone-400">
+                        <h3 class="font-bold text-stone-800">60% - Cor Neutra / Fundo</h3>
+                        <p class="text-sm text-stone-600">Base da interface (superfícies e fundos). Garante o descanso visual e suporte para o conteúdo.</p>
+                    </div>
+                    <div class="p-4 bg-sky-100 rounded-xl border-l-4 border-sky-600">
+                        <h3 class="font-bold text-sky-900">30% - Cor Estrutural / Texto</h3>
+                        <p class="text-sm text-sky-800">Tipografia, bordas e divisores. Garante leitura fluida e estrutura de layout.</p>
+                    </div>
+                    <div class="p-4 bg-amber-100 rounded-xl border-l-4 border-amber-500">
+                        <h3 class="font-bold text-amber-900">10% - Cor de Ação (Accent)</h3>
+                        <p class="text-sm text-amber-800">Botões principais, links ativos e call-to-actions. Atrai o olhar do usuário imediatamente.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Productivity Impact -->
+        <section id="impact" class="py-16 border-t border-stone-100">
+            <div class="mb-10 text-center">
+                <h2 class="text-3xl font-bold text-stone-900">2. O Impacto na Produtividade</h2>
+                <p class="text-stone-600 mt-2 max-w-3xl mx-auto">Comparação do tempo gasto em tarefas comuns. Note como a sistematização elimina o "vale da indecisão" no início de cada projeto.</p>
+            </div>
+
+            <div class="glass-card p-8">
+                <div class="chart-container h-96">
+                    <canvas id="barChartImpact"></canvas>
+                </div>
+                <div class="grid md:grid-cols-3 gap-6 mt-8">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-sky-600">-75%</div>
+                        <div class="text-sm text-stone-500 uppercase tracking-wide font-semibold">Tempo de Setup</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-sky-600">100%</div>
+                        <div class="text-sm text-stone-500 uppercase tracking-wide font-semibold">Padronização</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-sky-600">Zero</div>
+                        <div class="text-sm text-stone-500 uppercase tracking-wide font-semibold">Fadiga de Decisão</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: ROI Calculator -->
+        <section id="roi" class="py-16 border-t border-stone-100">
+            <div class="mb-10">
+                <h2 class="text-3xl font-bold text-stone-900">3. Simulador de ROI em Tempo Real</h2>
+                <p class="text-stone-600 mt-2">Quanto tempo sua empresa ganha ao implementar um Kit de Temas? Ajuste os parâmetros abaixo e veja a economia anual.</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-10">
+                <div class="space-y-8 glass-card p-6">
+                    <div>
+                        <label class="block text-sm font-semibold text-stone-700 mb-2">Projetos/Propostas por Mês</label>
+                        <input type="range" id="inputProjetos" min="1" max="50" value="10" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-stone-500 mt-1"><span>1</span><span id="valProjetos">10</span><span>50</span></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-stone-700 mb-2">Tempo Gasto Sem Tema (horas)</label>
+                        <input type="range" id="inputTempoSem" min="0.5" max="10" step="0.5" value="2" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-stone-500 mt-1"><span>0.5h</span><span id="valTempoSem">2h</span><span>10h</span></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-stone-700 mb-2">Tempo Gasto Com Tema (horas)</label>
+                        <input type="range" id="inputTempoCom" min="0.1" max="2" step="0.1" value="0.5" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer">
+                        <div class="flex justify-between text-xs text-stone-500 mt-1"><span>6min</span><span id="valTempoCom">30min</span><span>2h</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-stone-900 rounded-2xl p-8 text-white flex flex-col justify-center text-center">
+                    <span class="text-stone-400 text-sm uppercase tracking-widest mb-2 font-bold">Economia Anual Estimada</span>
+                    <div id="displayHorasEconomizadas" class="text-6xl font-bold text-sky-400 mb-4">180h</div>
+                    <p class="text-stone-300">Isso equivale a aproximadamente <span id="displayDiasEconomizados" class="font-bold text-white">22 dias</span> de trabalho recuperados por ano.</p>
+                    <div class="mt-8 pt-8 border-t border-stone-800">
+                        <div class="text-stone-500 text-xs mb-1">RETORNO SOBRE INVESTIMENTO (ROI)</div>
+                        <div id="displayROI" class="text-3xl font-semibold text-emerald-400">300%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section: Gallery -->
+        <section id="gallery" class="py-16 border-t border-stone-100 mb-10">
+            <div class="mb-10 text-center">
+                <h2 class="text-3xl font-bold text-stone-900">Inspiração e Templates</h2>
+                <p class="text-stone-600 mt-2">Diferentes modelos de acordo com o objetivo do seu negócio.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="glass-card overflow-hidden hover:shadow-xl transition group">
+                    <div class="h-32 bg-stone-900 flex items-center justify-center">
+                        <div class="w-12 h-12 bg-sky-500 rounded-full blur-lg opacity-50 group-hover:opacity-100 transition"></div>
+                        <span class="text-white font-bold">Glass OS</span>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold mb-1">Inovação Tech</h4>
+                        <p class="text-xs text-stone-500">Transparências e contrastes profundos.</p>
+                    </div>
+                </div>
+                <div class="glass-card overflow-hidden hover:shadow-xl transition group">
+                    <div class="h-32 bg-stone-100 flex items-center justify-center gap-2">
+                        <div class="w-4 h-4 bg-emerald-600 rounded-full"></div>
+                        <div class="w-4 h-4 bg-amber-200 rounded-full"></div>
+                        <div class="w-4 h-4 bg-stone-300 rounded-full"></div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold mb-1">Natureza Destilada</h4>
+                        <p class="text-xs text-stone-500">Sustentabilidade e tons terrosos.</p>
+                    </div>
+                </div>
+                <div class="glass-card overflow-hidden hover:shadow-xl transition group">
+                    <div class="h-32 bg-white flex flex-col p-4 gap-2">
+                        <div class="w-full h-2 bg-stone-200 rounded"></div>
+                        <div class="w-2/3 h-2 bg-stone-200 rounded"></div>
+                        <div class="w-1/2 h-4 bg-indigo-600 rounded mt-2"></div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold mb-1">Grid Modular</h4>
+                        <p class="text-xs text-stone-500">Alta produtividade e clareza de dados.</p>
+                    </div>
+                </div>
+                <div class="glass-card overflow-hidden hover:shadow-xl transition group">
+                    <div class="h-32 bg-sky-50 flex items-center justify-center">
+                        <div class="w-20 h-20 border-4 border-sky-200 rounded-full border-t-sky-600"></div>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-bold mb-1">Humanizado CX</h4>
+                        <p class="text-xs text-stone-500">Curvas suaves e foco no usuário.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-stone-50 border-t border-stone-200 py-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-stone-500 text-sm">© 2024 Hub de Produtividade Visual. Baseado no guia "Crie Temas e Aumente sua Produtividade".</p>
+        </div>
+    </footer>
+
+    <script>
+        // Data Storage
+        let donutChart;
+        let barChart;
+
+        function initDonutChart() {
+            const ctx = document.getElementById('donutChartAnatomy').getContext('2d');
+            donutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Fundo / Superfície (60%)', 'Texto / Estrutura (30%)', 'Ação / Accent (10%)'],
+                    datasets: [{
+                        data: [60, 30, 10],
+                        backgroundColor: ['#e2e8f0', '#0284c7', '#f59e0b'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        async function askGemini() {
+            const prompt = document.getElementById('aiPrompt').value;
+            const responseDiv = document.getElementById('aiResponse');
+            const btn = document.getElementById('aiBtn');
+
+            if (!prompt) return;
+
+            btn.disabled = true;
+            btn.innerText = "Pensando...";
+            responseDiv.classList.remove('hidden');
+            responseDiv.innerText = "Consultando inteligência artificial...";
+
+            const apiKey = ""; // Canvas handles this automatically
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Aja como um consultor de design system para PMEs. ${prompt}` }] }],
+                        systemInstruction: { parts: [{ text: "Forneça sugestões práticas de design, incluindo nomes de cores hexadecimais e sugestões de tipografia. Seja conciso." }] }
+                    })
+                });
+
+                const data = await response.json();
+                const text = data.candidates[0].content.parts[0].text;
+                responseDiv.innerHTML = text.replace(/\n/g, '<br>');
+            } catch (err) {
+                responseDiv.innerText = "Erro ao conectar com a IA. Tente novamente.";
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Gerar Sugestão";
+            }
+        }
+
+        function initBarChart() {
+            const ctx = document.getElementById('barChartImpact').getContext('2d');
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Branding', 'Website', 'Apresentação', 'Proposta'],
+                    datasets: [
+                        {
+                            label: 'Sem Tema (Horas)',
+                            data: [8, 20, 5, 2],
+                            backgroundColor: '#94a3b8'
+                        },
+                        {
+                            label: 'Com Tema (Horas)',
+                            data: [2, 6, 1, 0.5],
+                            backgroundColor: '#0284c7'
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'Horas Gastas' } }
+                    },
+                    plugins: {
+                        tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)' }
+                    }
+                }
+            });
+        }
+
+        // ROI Logic
+        function updateROI() {
+            const numProjetos = parseFloat(document.getElementById('inputProjetos').value);
+            const tempoSem = parseFloat(document.getElementById('inputTempoSem').value);
+            const tempoCom = parseFloat(document.getElementById('inputTempoCom').value);
+
+            document.getElementById('valProjetos').innerText = numProjetos;
+            document.getElementById('valTempoSem').innerText = tempoSem + 'h';
+            document.getElementById('valTempoCom').innerText = (tempoCom < 1 ? (tempoCom*60).toFixed(0) + 'min' : tempoCom + 'h');
+
+            const economiaPorProjeto = tempoSem - tempoCom;
+            const economiaMensal = economiaPorProjeto * numProjetos;
+            const economiaAnual = economiaMensal * 12;
+
+            document.getElementById('displayHorasEconomizadas').innerText = Math.round(economiaAnual) + 'h';
+            document.getElementById('displayDiasEconomizados').innerText = Math.round(economiaAnual / 8) + ' dias';
+            
+            // Simplified ROI formula relative to a hypothetical 4h creation time
+            const roiValue = (((economiaAnual - 4) / 4) * 100).toFixed(0);
+            document.getElementById('displayROI').innerText = roiValue + '%';
+        }
+
+        // Navigation
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+            
+            // Update active state
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if(link.getAttribute('onclick').includes(id)) link.classList.add('active');
+            });
+        }
+
+        // Listeners
+        document.getElementById('inputProjetos').addEventListener('input', updateROI);
+        document.getElementById('inputTempoSem').addEventListener('input', updateROI);
+        document.getElementById('inputTempoCom').addEventListener('input', updateROI);
+
+        // Run on load
+        window.onload = () => {
+            initDonutChart();
+            initBarChart();
+            updateROI();
+        };
+    </script>
+</body>
+</html>
